@@ -424,4 +424,11 @@ class FlexibleScanpathHistoryEncoding(nn.Module):
                 )
             results[valid_indices] += this_result
 
+        if results is None:
+            b, _, h, w = tensor.shape
+            return torch.zeros(
+                (b, self.out_channels, h, w),
+                dtype=tensor.dtype,
+                device=tensor.device,
+            )
         return results

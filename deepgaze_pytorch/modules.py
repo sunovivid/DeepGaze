@@ -1,5 +1,6 @@
 import functools
 import math
+import threading
 
 import numpy as np
 import torch
@@ -55,6 +56,7 @@ class FeatureExtractor(torch.nn.Module):
         self.targets = targets
         #print("Targets are {}".format(targets))
         self.outputs = {}
+        self._thread_local = threading.local()
 
         for target in targets:
             layer = dict([*self.features.named_modules()])[target]
@@ -62,14 +64,24 @@ class FeatureExtractor(torch.nn.Module):
 
     def save_outputs_hook(self, layer_id: str):
         def fn(_, __, output):
-            self.outputs[layer_id] = output.clone()
+            outputs = getattr(self._thread_local, "outputs", None)
+            if outputs is None:
+                outputs = self.outputs
+            try:
+                outputs[layer_id] = output.clone()
+            except AttributeError:
+                outputs[layer_id] = output
         return fn
 
     def forward(self, x):
-
-        self.outputs.clear()
-        self.features(x)
-        return [self.outputs[target] for target in self.targets]
+        outputs = {}
+        self._thread_local.outputs = outputs
+        try:
+            self.features(x)
+        finally:
+            self._thread_local.outputs = None
+        self.outputs = outputs
+        return [outputs[target] for target in self.targets]
 
 
 def upscale(tensor, size):

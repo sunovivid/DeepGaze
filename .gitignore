@@ -1,2 +1,3 @@
+scanpath_outputs*
 *.pyc
 __pycache__
